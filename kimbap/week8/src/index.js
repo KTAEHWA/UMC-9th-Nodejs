@@ -182,6 +182,7 @@ app.use((err, req, res, next) => {
     ALREADY_COMPLETED: 400,
     DUPLICATE_USER_EMAIL: 400,
     U001: 400,
+    U100: 500,
   };
 
   const errorCode = err.errorCode || err.code || "unknown";
