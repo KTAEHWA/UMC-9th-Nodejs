@@ -57,7 +57,7 @@ export const handleUserSignUp = async (req, res, next) => {
               error: {
                 type: "object",
                 properties: {
-                  errorCode: { type: "string", example: "U001" },
+                  errorCode: { type: "string", example: "USER4001" },
                   reason: { type: "string", example: "이미 존재하는 이메일입니다." },
                   data: { type: "object" }
                 }

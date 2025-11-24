@@ -68,7 +68,7 @@ app.get("/openapi.json", async (req, res, next) => {
           ErrorObject: {
             type: "object",
             properties: {
-              errorCode: { type: "string", example: "U001" },
+              errorCode: { type: "string", example: "USER4001" },
               reason: { type: "string", example: "이미 존재하는 이메일입니다." },
               data: { type: "object" }
             }
@@ -181,17 +181,39 @@ app.use((err, req, res, next) => {
     USER_MISSION_NOT_FOUND: 404,
     ALREADY_COMPLETED: 400,
     DUPLICATE_USER_EMAIL: 400,
-    U001: 400,
-    U100: 500,
+    USER_MAPPING_ERROR: 500,
+    REVIEW_NOT_FOUND: 404,
   };
 
-  const errorCode = err.errorCode || err.code || "unknown";
-  const statusCode = err.statusCode || statusMap[errorCode] || 500;
+  const domainPrefix = (code) => {
+    if (!code) return "APP";
+    if (code.startsWith("STORE")) return "STORE";
+    if (code.startsWith("USER_MISSION") || code.startsWith("MISSION")) return "MISSION";
+    if (code.startsWith("REVIEW")) return "REVIEW";
+    if (code.startsWith("USER")) return "USER";
+    if (code.startsWith("DUPLICATE_USER_EMAIL")) return "USER";
+    return "APP";
+  };
+
+  const subcodeMap = {
+    STORE_NOT_FOUND: 1,
+    USER_MISSION_NOT_FOUND: 1,
+    ALREADY_COMPLETED: 2,
+    DUPLICATE_USER_EMAIL: 1,
+    USER_MAPPING_ERROR: 1,
+    REVIEW_NOT_FOUND: 1,
+  };
+
+  const origin = err.errorCode || err.code || "unknown";
+  const statusCode = err.statusCode || statusMap[origin] || 500;
+  const prefix = domainPrefix(origin);
+  const sub = subcodeMap[origin] || 0;
+  const formatted = `${prefix}${statusCode}${sub}`;
 
   res.status(statusCode).error({
-    errorCode,
+    errorCode: formatted,
     reason: err.reason || err.message || null,
-    data: err.data || null,
+    data: { ...(err.data || {}), originCode: origin },
   });
 });
 

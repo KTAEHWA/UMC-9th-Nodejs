@@ -1,5 +1,5 @@
 export class DuplicateUserEmailError extends Error {
-  errorCode = "U001";
+  errorCode = "DUPLICATE_USER_EMAIL";
 
   constructor(reason, data) {
     super(reason);
@@ -9,7 +9,7 @@ export class DuplicateUserEmailError extends Error {
 }
 
 export class DataMappingError extends Error {
-  errorCode = "U100";
+  errorCode = "USER_MAPPING_ERROR";
 
   constructor(reason, data) {
     super(reason);
