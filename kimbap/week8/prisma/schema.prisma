@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Provider {
+  KAKAO
+  NAVER
+  APPLE
+  GOOGLE
+}
+
+model User {
+  id          BigInt    @id @default(autoincrement())
+  name        String     @db.VarChar(50)
+  email       String?    @unique @db.VarChar(255)
+  gender      Gender?
+  birthdate   DateTime   @db.Timestamp
+  address     String     @db.VarChar(255)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime   @default(now()) @updatedAt @db.Timestamp(6)
+  points      BigInt
+
+  // Relations
+  authProviders   AuthProviders[]
+  foodPreferences FoodPreference[]
+  missions        MissionAssigned[]
+  
+  @@map("User")
+}
+
+model AuthProviders {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt
+  provider    Provider
+  providerUid String   @db.VarChar(128)
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("AuthProviders")
+}
+
+model Category {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @map("category") @db.VarChar(50)
+
+  foodPreferences FoodPreference[]
+  stores          Store[]
+
+  @@map("Category")
+}
+
+model FoodPreference {
+  id         BigInt    @id @default(autoincrement())
+  userId     BigInt
+  categoryId BigInt
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  user       User      @relation(fields: [userId], references: [id])
+  category   Category  @relation(fields: [categoryId], references: [id])
+
+  @@map("FoodPreference")
+}
+
+model MissionAssigned {
+  id           BigInt    @id @default(autoincrement())
+  userId       BigInt
+  missionId    BigInt
+  status       String    @db.VarChar(20)
+  assignedAt   DateTime? @default(now()) @db.Timestamp(6)
+  completedAt  DateTime?
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id])
+  mission      MissionTemplate @relation(fields: [missionId], references: [id])
+  reviews      Review[]
+
+  @@map("MissionAssigned")
+}
+
+model MissionTemplate {
+  id          BigInt    @id @default(autoincrement())
+  storeId     BigInt
+  reward      BigInt
+  description String     @db.VarChar(255)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @db.Timestamp(6)
+
+  // Relations
+  store       Store      @relation(fields: [storeId], references: [id])
+  missions    MissionAssigned[]
+
+  @@map("MissionTemplate")
+}
+
+model Region {
+  id         BigInt   @id @default(autoincrement())
+  regionName String   @db.VarChar(50)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+
+  stores     Store[]
+
+  @@map("Region")
+}
+
+model Review {
+  id                 BigInt    @id @default(autoincrement())
+  assignedMissionId  BigInt
+  rating             BigInt
+  body               String?   @db.VarChar(2000)
+  createdAt          DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  missionAssigned    MissionAssigned @relation(fields: [assignedMissionId], references: [id])
+
+  @@map("Review")
+}
+
+model Store {
+  id         BigInt   @id @default(autoincrement())
+  regionId   BigInt
+  categoryId BigInt
+  storeName  String   @db.VarChar(50)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  region     Region    @relation(fields: [regionId], references: [id])
+  category   Category  @relation(fields: [categoryId], references: [id])
+  missions   MissionTemplate[]
+
+  @@map("Store")
+}
