@@ -1,13 +1,80 @@
-name: deploy-main  # 파이프라인 이름은 자유롭게 지어주세요
+name: deploy-main
 
 on:
   push:
     branches:
-      - main  # main 브랜치에 새로운 커밋이 올라왔을 떄 실행되도록 합니다
-  workflow_dispatch:  # 필요한 경우 수동으로 실행할 수도 있도록 합니다
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # CI/CD 파이프라인이 실행될 운영체제 환경을 지정합니다
+    runs-on: ubuntu-latest
     steps:
-      - TODO
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # 접속 별명 설정
+          cat >>~/.ssh/config <<END
+          Host umc9thworkbook
+            HostName $EC2_HOST
+            User $EC2_USER
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          END
+        env:
+          EC2_USER: ubuntu
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Copy Workspace (rsync)
+        run: |
+          ssh umc9thworkbook 'sudo mkdir -p /opt/app && sudo chown -R ubuntu:ubuntu /opt/app'
+          rsync -az --delete \
+            --exclude ".git" \
+            --exclude "node_modules" \
+            ./ umc9thworkbook:/opt/app/
+
+      - name: Write .env to week9 app
+        run: |
+          ssh umc9thworkbook 'mkdir -p /opt/app/kimbap/week9'
+          ssh umc9thworkbook 'cat > /opt/app/kimbap/week9/.env <<EOF
+          $ENV_FILE
+          EOF'
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+
+      - name: Install dependencies (week9)
+        run: |
+          ssh umc9thworkbook 'cd /opt/app/kimbap/week9 && npm ci'
+
+      - name: Create/Update systemd service
+        run: |
+          ssh umc9thworkbook '
+            echo "[Unit]
+            Description=UMC 9th Project - week9
+            After=network.target
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/opt/app/kimbap/week9
+            Environment=NODE_ENV=production
+            EnvironmentFile=/opt/app/kimbap/week9/.env
+            ExecStart=/usr/bin/npm run start
+            Restart=always
+            RestartSec=5
+
+            [Install]
+            WantedBy=multi-user.target" | sudo tee /etc/systemd/system/app.service >/dev/null
+          '
+
+      - name: Enable and Restart service
+        run: |
+          ssh umc9thworkbook 'sudo systemctl daemon-reload'
+          ssh umc9thworkbook 'sudo systemctl enable app || true'
+          ssh umc9thworkbook 'sudo systemctl restart app'
